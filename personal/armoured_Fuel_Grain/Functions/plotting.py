@@ -2,7 +2,7 @@
 
 
 
-def plotFunc(SEC, GEO, PARAM, np, plt):
+def plotFunc(SEC, GEO, PARAM, np, plt, os):
     SEC["plotNum"]          = {}
     SEC["plotX"]            = {}
     SEC["plotY"]            = {}
@@ -31,7 +31,10 @@ def plotFunc(SEC, GEO, PARAM, np, plt):
     # Valutazione della curva
     X_fit = np.linspace(min(X_all), max(X_all), 500)
     Y_fit = poly_fit(X_fit)
-
+    
+    save_dir = "./Output/Chart"
+    os.makedirs(save_dir, exist_ok=True)
+    
     plt.figure(figsize=(8,5))
     plt.plot(X_fit, 
             Y_fit, 

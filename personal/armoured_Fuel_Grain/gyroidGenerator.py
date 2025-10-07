@@ -63,7 +63,7 @@ SEC = meshCalibrationTool.meshCalibrationTool(              # Calibration of wav
 # wavelength for the whole domain and save the chart        #
 # representing its variation along radius                   #
 from Functions import plotting
-PARAM = plotting.plotFunc(SEC, GEO, PARAM, np, plt)
+PARAM = plotting.plotFunc(SEC, GEO, PARAM, np, plt, os)
 
 
 
@@ -95,7 +95,8 @@ grid["f"]                       = iso.flatten(order="F")    #
 iso_mesh                        = grid.contour([0]).extract_surface().triangulate().clean()
 
 
-
+save_dir = "./Output/STL"
+os.makedirs(save_dir, exist_ok=True)
 for i in FLAG["extensions"].keys():
     SEC = {}
     if "z" in GEO:
