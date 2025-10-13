@@ -7,8 +7,8 @@ tic = time.time()
 
 # --- INPUTS - Geometry ---
 GEO["radius"]           = 50                                # External radius          
-GEO["port"]             = 20                                 # Internal radius
-GEO["offset"]           = 0.15                              # Percentage value, until radial position gets
+GEO["port"]             = 10                                # Internal radius
+GEO["offset"]           = 0.1                               # Percentage value, until radial position gets
                                                             #   higher, the infill is set constant.        
 GEO["originalPort"]     = GEO["port"]                       # If extensions are added, the previous
 GEO["originalRadius"]   = GEO["radius"]                     # three parameters will be changed and need to be saved

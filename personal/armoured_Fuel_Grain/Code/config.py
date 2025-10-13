@@ -24,7 +24,7 @@ GEO                 =   {}
 # --- Parameters for the cmesh alibration and construction  #
 PARAM["chi"]                        = 0.371                 # Empirical constant for wavelength estimation.
 PARAM["angle"]                      = 360                   # Revolution angle.
-PARAM["waveLength_resolution"]      = 80                    # Number of samples with respect to local wavelength
+PARAM["waveLength_resolution"]      = 70                    # Number of samples with respect to local wavelength
 PARAM["monteCarlo"]["options"]      = {                     # Configuration settings for gradient minization
                                         'verbose': 3,       #   algorithm calling the montecarlo estimation
                                         'gtol': 1e-37,      #   of infill for each section.             
