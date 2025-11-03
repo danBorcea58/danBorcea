@@ -33,69 +33,87 @@ def buildChannels(GEO, CH, np):
 
     # Wall thickness around the torydal profile                                     #
     GEO["spline"]["tubeThickness"] = lambda theta: GEO["thickness"]["external"]     # pressure*GEO["spline"]["torus"](theta)*FS/sigmaSteel
-    
-    
-    factor = GEO["ratio"]["toroydDELTA"]
-    DELTA = 2*factor*((sectionStart+GEO["spline"]["tubeThickness"](sectionStart))+sectionEnd/2+GEO["spline"]["tubeThickness"](sectionEnd)/2)
-    
-    # Calcola il coefficiente finale (costante usata in entrambe le tratte)
-    K = (sectionStart + GEO["spline"]["tubeThickness"](sectionStart))/3
-    GEO["dist"] = K
-    K = (GEO["spline"]["tubeThickness"](2*np.pi))*2 \
-                +sectionStart*(1+0*np.cos(GEO["angle"]["channel"]["end"])) + sectionEnd
-
-
-    # Funzione a tratti per jump
-    GEO["spline"]["jump"] = lambda theta: (
-        (theta / theta_c) ** 2 * (theta_c / GEO["sigmaRange"]) ** 2 * K
+                                                                                    #
+    # Additional space dedicated for the transition to the toroydal section         #
+    factor  = GEO["ratio"]["toroydDELTA"]                                           #
+    # Axial coordinate from which the transition starts                             #
+    DELTA = 2*factor*((                                                             #
+        sectionStart+GEO["spline"]["tubeThickness"](sectionStart)                   #
+        )+sectionEnd/2+GEO["spline"]["tubeThickness"](sectionEnd)/2)                #
+                                                                                    #
+    # Final value for jump function                                                 #         
+    K = (sectionStart + GEO["spline"]["tubeThickness"](sectionStart))/3             #
+    GEO["dist"] = K                                                                 #
+    K = (GEO["spline"]["tubeThickness"](2*np.pi))*2+                                \
+        sectionStart*(1+0*np.cos(GEO["angle"]["channel"]["end"])) + sectionEnd      #
+                                                                                    #
+                                                                                    #
+    # Jump for the toroydal axis in order to offset the final section from start    #
+    GEO["spline"]["jump"] = lambda theta: (                                         #
+        (theta / theta_c) ** 2 * (theta_c / GEO["sigmaRange"]) ** 2 * K             #
         if theta < theta_c else
-        (theta_c / GEO["sigmaRange"]) ** 2 * K + ((theta - theta_c) / (GEO["sigmaRange"] - theta_c)) ** 2 * (K - (theta_c / GEO["sigmaRange"]) ** 2 * K)
-    )
+        (theta_c / GEO["sigmaRange"]) ** 2 * K + ((theta - theta_c) /               \
+            (GEO["sigmaRange"] - theta_c)) ** 2                                     \
+                * (K - (theta_c / GEO["sigmaRange"]) ** 2 * K)                      #
+        )                                                                           #
+                                                                                    #
+    # Derivative for jump function                                                  #
+    GEO["spline"]["djump"] = lambda theta: (                                        #
+        2 * theta * K / (GEO["sigmaRange"] ** 2)                                    #
+        if theta < theta_c else                                                             
+        2 * (theta - theta_c) / ((GEO["sigmaRange"] - theta_c) ** 2)                #
+        * (K - (theta_c / GEO["sigmaRange"]) ** 2 * K)                              #
+    )                                                                               #
+                                                                                    #
+    # Channel width along circumference, considering interwall thickness            #
+    CH["spline"]["width"] = lambda x: (GEO["spline"]["profile"]["fun"](x)*2*np.pi-  \
+                    GEO["thickness"]["interWall"]*                                  \
+                    CH["number"]/np.cos(GEO["spline"]["Rotation"](x)))/CH["number"] #
+                                                                                    #
+                                                                                    #
+    # Initialization before the sweeping of channel profiles                        #
+    vertices, faces         = [], []                                                #   
+    GEO["length"]["DELTA"]  = DELTA                                                 #
+    x, rotation, idx_count  = GEO["pos"]["end"]-DELTA, 0.0, 0                       #
+    prev_idx                = None                                                  #
+    check                   = 0                                                     #
+                                                                                    #
+    # Number of samples for channel profile                                         #
+    horizontalSamples       = GEO["number"]["samples"]["channel"]["h"]              #
+    radialSamples           = GEO["number"]["samples"]["channel"]["r"]              #
+                                                                                    #
+    # Axial coordinate for toroydal axis                                            #
+    GEO["spline"]["plane"] = lambda theta: (                                        #
+        GEO["spline"]["torus"](min(theta, GEO["sigmaRange"])) +                     #
+        GEO["spline"]["tubeThickness"](min(theta, GEO["sigmaRange"])) +             #
+        GEO["spline"]["jump"](min(theta, GEO["sigmaRange"])) -                      #
+        GEO["spline"]["torus"](min(theta, GEO["sigmaRange"])) *                     #
+        np.sin(GEO["spline"]["profile"]["dfun"](                                    #
+            GEO["pos"]["end"] -                                                     #
+            GEO["spline"]["torus"](min(theta, GEO["sigmaRange"])) -                 #
+            GEO["spline"]["tubeThickness"](min(theta, GEO["sigmaRange"]))           #
+        ))                                                                          #
+    )                                                                               #
+                                                                                    #
+    # sweeping of channels, starting from DELTA end to the 0 axial position         #
+    while x >= 0:                                                                   #
+        w       = CH["spline"]["width"](x)                                          #
+                                                                                    #
+        # Axial iteration                                                           #                      
+        dx      = float(CH["spline"]["height"](x)) / 5                              #
+        # Save it for the toroydal section sampling                                 #
+        if check == 0:                                                              #
+            CH["resolution"] = dx                                                   #
+                                                                                    #
+        # Radius for internal surface of channel                                    #
+        internalR = GEO["thickness"]["internal"]/np.cos(                            #
+            GEO["spline"]["profile"]["dfun"](x)                                     #
+            ) + float(GEO["spline"]["profile"]["fun"](x))                           #
+        # Local normal angle of surface                                             #
+        dfun = float(GEO["spline"]["profile"]["dfun"](x))                       #
 
-    GEO["spline"]["djump"] = lambda theta: (
-        2 * theta * K / (GEO["sigmaRange"] ** 2)
-        if theta < theta_c else
-        2 * (theta - theta_c) / ((GEO["sigmaRange"] - theta_c) ** 2)
-        * (K - (theta_c / GEO["sigmaRange"]) ** 2 * K)
-    )
-
-    CH["spline"]["width"] = lambda x: (GEO["spline"]["profile"]["fun"](x)*2*np.pi-\
-                         GEO["thickness"]["interWall"]*\
-                           CH["number"]/np.cos(GEO["spline"]["Rotation"](x)))/CH["number"]
-    
-    vertices, faces         = [], []
-    GEO["length"]["DELTA"]  = DELTA
-    x, rotation, idx_count  = GEO["pos"]["end"]-DELTA, 0.0, 0
-    prev_idx                = None
-    check                   = 0
-    horizontalSamples       = GEO["number"]["samples"]["channel"]["h"]
-    radialSamples           = GEO["number"]["samples"]["channel"]["r"]
-    
-    GEO["spline"]["plane"] = lambda theta: (
-        GEO["spline"]["torus"](min(theta, GEO["sigmaRange"])) +
-        GEO["spline"]["tubeThickness"](min(theta, GEO["sigmaRange"])) +
-        GEO["spline"]["jump"](min(theta, GEO["sigmaRange"])) -
-        GEO["spline"]["torus"](min(theta, GEO["sigmaRange"])) *
-        np.sin(GEO["spline"]["profile"]["dfun"](
-            GEO["pos"]["end"] -
-            GEO["spline"]["torus"](min(theta, GEO["sigmaRange"])) -
-            GEO["spline"]["tubeThickness"](min(theta, GEO["sigmaRange"]))
-        ))
-    )
-
-    # ============================================================
-    # === 1️⃣ COSTRUZIONE DEL SINGOLO CANALE (una fetta) ========
-    # ============================================================
-    while x >= 0:
-        
-        w = CH["spline"]["width"](x)
-        dx = float(CH["spline"]["height"](x)) / 5
-        if check == 0:
-            CH["resolution"] = dx
-        r_center = GEO["thickness"]["internal"]/np.cos(GEO["spline"]["profile"]["dfun"](x)) + float(GEO["spline"]["profile"]["fun"](x))
-        dfun_val = float(GEO["spline"]["profile"]["dfun"](x))
-        rot_val = float(GEO["spline"]["Rotation"](x))
-        dtheta = (np.tan(rot_val) * dx) / (r_center * np.cos(dfun_val))
+        centerlineAngle = float(GEO["spline"]["Rotation"](x))
+        dtheta = (np.tan(centerlineAngle) * dx) / (internalR * np.cos(dfun))
         if check == 0:
             dtheta = 0
         rotation += dtheta
@@ -107,25 +125,25 @@ def buildChannels(GEO, CH, np):
 
         # --- Costruisci metà profilo ---
         x_left = np.linspace(-w/2 + smooth, w/2 - smooth, horizontalSamples)[1:]
-        r_left = np.full_like(x_left, r_center)
+        r_left = np.full_like(x_left, internalR)
 
         # 2. Semiarco superiore (sinistra → destra), escludi primo punto per evitare duplicato con x_left
         phi_top = np.linspace(-np.pi/2, np.pi/2, radialSamples)
         x_top = (w/2 - smooth) + smooth * np.cos(phi_top)
-        r_top = r_center + smooth + smooth * np.sin(phi_top)
+        r_top = internalR + smooth + smooth * np.sin(phi_top)
         x_top = x_top[1:]
         r_top = r_top[1:]
 
         # 3. Lato destro, escludi primo punto per evitare duplicato con x_top
         x_right = np.linspace(w/2 - smooth, -w/2 + smooth, horizontalSamples, endpoint=True)
-        r_right = np.full_like(x_right, r_center + 2 * smooth)
+        r_right = np.full_like(x_right, internalR + 2 * smooth)
         x_right = x_right[1:]
         r_right = r_right[1:]
 
         # 4. Semiarco inferiore (destra → sinistra), escludi primo punto per evitare duplicato con x_right
         phi_bottom = np.linspace(np.pi/2, -np.pi/2, radialSamples)
         x_bottom = -(w/2 - smooth) - smooth * np.cos(phi_bottom)
-        r_bottom = r_center + smooth + smooth * np.sin(phi_bottom)
+        r_bottom = internalR + smooth + smooth * np.sin(phi_bottom)
         x_bottom = x_bottom[1:]
         r_bottom = r_bottom[1:]
 
@@ -191,10 +209,10 @@ def buildChannels(GEO, CH, np):
         distance2 = distance
         while distance2 >= 0:
             dx = float(CH["spline"]["height"](x)) / 5
-            r_center = GEO["thickness"]["internal"] + float(GEO["spline"]["profile"]["fun"](x))
+            internalR = GEO["thickness"]["internal"] + float(GEO["spline"]["profile"]["fun"](x))
             dfun_val = float(GEO["spline"]["profile"]["dfun"](x))
             rot_val = float(GEO["spline"]["Rotation"](x))
-            dsigma = (np.tan(rot_val) * dx) / (r_center * np.cos(dfun_val))
+            dsigma = (np.tan(rot_val) * dx) / (internalR * np.cos(dfun_val))
             sigma += dsigma
             x += dx
             distance = -GEO["spline"]["plane"](np.pi*2/CH["number"]*(section+1)) + GEO["pos"]["end"] - x
@@ -207,7 +225,7 @@ def buildChannels(GEO, CH, np):
                 GEO["length"]["halfDistance"] = x
                 check2 = 1
                 saveSigma = sigma
-                saveR = r_center
+                saveR = internalR
                 GEO["dist"] = dist2
                 
                 

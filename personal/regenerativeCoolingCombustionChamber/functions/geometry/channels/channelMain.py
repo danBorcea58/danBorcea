@@ -7,12 +7,12 @@
 
 def centerLine(GEO,np):
     CH =    {"circ":    {
-        "min": 
-            GEO["spline"]["profile"]["fun"](GEO["pos"]["throat"])*2*np.pi,
-        "max":
-            max(GEO["spline"]["profile"]["fun"](list(GEO["pos"].values())))*2*np.pi
+                            "min": 
+                                GEO["spline"]["profile"]["fun"](GEO["pos"]["throat"])*2*np.pi,
+                            "max":
+                                max(GEO["spline"]["profile"]["fun"](list(GEO["pos"].values())))*2*np.pi
+                        }
             }
-    }
     from .channelFunctions import buildChannels, pathAngle
     GEO, CH = pathAngle(GEO,CH,np)
     CH["number"] = np.ceil(CH["circ"]["min"] /    
