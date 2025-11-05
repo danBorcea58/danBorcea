@@ -492,7 +492,7 @@ def pathAngle(GEO,CH,np):
     CH["angle"]["divergent"] = sp.nsolve(fun, beta, 0.15)
     CH["radius"]["divergent"] = s / sp.sin(CH["angle"]["divergent"])
 
-    from ...common import commonFunc
+    from ....common import commonFunc
     FUNC = inputPathAngle(GEO,CH,np)
     fun  = lambda x: commonFunc.unified_function(FUNC, x, np)[0]
     GEO["spline"]["originalTheta"] = fun
@@ -928,3 +928,21 @@ def intersection(GEO, rCentre, xCentre, distance):
 
 
 
+def centerLine(GEO,np):
+    CH =    {"circ":    {
+                            "min": 
+                                GEO["spline"]["profile"]["fun"](GEO["pos"]["throat"])*2*np.pi,
+                            "max":
+                                max(GEO["spline"]["profile"]["fun"](list(GEO["pos"].values())))*2*np.pi
+                        }
+            }
+    GEO, CH = pathAngle(GEO,CH,np)
+    CH["number"] = np.ceil(CH["circ"]["min"] /    
+        (GEO["length"]["minChannel"] + GEO["thickness"]["interWall"])*np.cos(GEO["spline"]["Rotation"](GEO["pos"]["throat"])))
+    CH["spline"] = {"width": lambda x:   
+                        (GEO["spline"]["profile"]["fun"](x)*2*np.pi-\
+                         GEO["thickness"]["interWall"]*\
+                           CH["number"]/np.cos(GEO["spline"]["Rotation"](x)))/CH["number"]}
+    CH["spline"]["height"] = lambda x: CH["spline"]["width"](x)/GEO["number"]["samplesChannel"]
+
+    return GEO, CH

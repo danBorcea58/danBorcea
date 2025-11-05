@@ -60,8 +60,8 @@ INPUT = {
 from functions.geometry.profile import profileMain
 PR = profileMain.INPUTprocessing(INPUT,np)
 
-from functions.geometry.channels import channelMain
-CH, GEO, STL = channelMain.centerLine(PR,np)
+from functions.geometry.STL import STLgenerator
+CH, GEO, STL = STLgenerator.STL(PR,np)
 
 
 
