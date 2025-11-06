@@ -3,7 +3,7 @@
 
 def STL(GEO, np):
     from .channels import channelsFunctions, channelsMain
-    GEO, CH     = channelsFunctions.centerLine(GEO, np)
+    GEO, CH     = channelsFunctions.channelWrapParametricFunctions(GEO, np)
     STL         = channelsMain.buildChannels(GEO, CH, np)
 
     from .toroyd import toroydMain

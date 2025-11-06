@@ -36,8 +36,8 @@ INPUT = {
                                     "start":            0,
                                     "choking":          20,
                                     "throat":           70,
-                                    "divergent":        10,
-                                    "end":              70       
+                                    "divergent":        50,
+                                    "end":              60       
                                 }
                             },
             "thickness":    {   
@@ -54,6 +54,16 @@ INPUT = {
                                             "r"     :   13          # int!
                                         }
                                 }
+                            },
+            "conditions":   {
+                                "pressure"  :
+                                {
+                                    "channel":          5*10^6
+                                }
+                            },
+            "material":     {
+                                "sigma":                250*10^6,
+                                "SF":                   2
                             }
         }
 

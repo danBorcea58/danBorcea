@@ -1,77 +1,23 @@
 
 
-def buildChannels(GEO, CH, np):
-    from . import channelsFunctions
-    pressure = 5*10^6
-    sigmaSteel = 250*10^6
-    FS = 2
-    GEO["sigmaRange"]   = 2*np.pi
-    sectionStart        = GEO["radius"]["toroydInit"]
-    sectionEnd          = GEO["radius"]["toroydEnd"]
-
-
-    # Since the total revolution angle is not known at priori, for the first        #
-    #   section a full rotation is assumed to integrate the first channel until     #
-    #   the toroydal distribution channel.                                          #
+def buildChannels(GEO, CH, np):                                                         
+    from . import channelsFunctions                                                 #
                                                                                     #
-    theta_c     = np.pi * 2 / CH["number"]                                          #
-    sectionMid  = sectionStart-(theta_c / (np.pi * 2))*(sectionStart - sectionEnd)  #
-
-    # Profile radius for toroydal section, as function of revolution angle          #
-    GEO["spline"]["torus"] = lambda theta: (                                        #   
-        (lambda θ:                                                                  #
-            sectionStart - (θ / theta_c) * (sectionStart - sectionMid)              #
-            if θ < theta_c else                                     
-            sectionMid - ((θ - theta_c) / (GEO["sigmaRange"] - theta_c))            \
-                * (sectionMid - sectionEnd)                                         #
-        )(min(theta, GEO["sigmaRange"]))                                            #
-    )                                                                               #
+    GEO["sigmaRange"]   = 2*np.pi                                                   #
+    sectionStart        = GEO["radius"]["toroydInit"]                               #
+    sectionEnd          = GEO["radius"]["toroydEnd"]                                #
                                                                                     #
-    # Wall thickness around the torydal profile                                     #
-    # pressure*GEO["spline"]["torus"](theta)*FS/sigmaSteel                          #
-    GEO["spline"]["tubeThickness"] = lambda theta: GEO["thickness"]["external"]     # 
+    GEO, CH = channelsFunctions.parametricFunctions(GEO,                            #
+                                                    CH,                             #
+                                                    sectionStart,                   #
+                                                    sectionEnd,                     #
+                                                    np)                             #
                                                                                     #
-    # Additional space dedicated for the transition to the toroydal section         #
-    factor  = GEO["ratio"]["toroydDELTA"]                                           #
-    # Axial coordinate from which the transition starts                             #
-    DELTA = 2*factor*((                                                             #
-        sectionStart+GEO["spline"]["tubeThickness"](sectionStart)                   #
-        )+sectionEnd/2+GEO["spline"]["tubeThickness"](sectionEnd)/2)                #
-                                                                                    #
-    # Final value for jump function                                                 #         
-    K = (sectionStart + GEO["spline"]["tubeThickness"](sectionStart))/3             #
-    GEO["dist"] = K                                                                 #
-    K = (GEO["spline"]["tubeThickness"](2*np.pi))*2+                                \
-        sectionStart*(1+0*np.cos(GEO["angle"]["channel"]["end"])) + sectionEnd      #
-                                                                                    #
-                                                                                    #
-    # Jump for the toroydal axis in order to offset the final section from start    #
-    GEO["spline"]["jump"] = lambda theta: (                                         #
-        (theta / theta_c) ** 2 * (theta_c / GEO["sigmaRange"]) ** 2 * K             #
-        if theta < theta_c else
-        (theta_c / GEO["sigmaRange"]) ** 2 * K + ((theta - theta_c) /               \
-            (GEO["sigmaRange"] - theta_c)) ** 2                                     \
-                * (K - (theta_c / GEO["sigmaRange"]) ** 2 * K)                      #
-        )                                                                           #
-                                                                                    #
-    # Derivative for jump function                                                  #
-    GEO["spline"]["djump"] = lambda theta: (                                        #
-        2 * theta * K / (GEO["sigmaRange"] ** 2)                                    #
-        if theta < theta_c else                                                             
-        2 * (theta - theta_c) / ((GEO["sigmaRange"] - theta_c) ** 2)                #
-        * (K - (theta_c / GEO["sigmaRange"]) ** 2 * K)                              #
-    )                                                                               #
-                                                                                    #
-    # Channel width along circumference, considering interwall thickness            #
-    CH["spline"]["width"] = lambda x: (GEO["spline"]["profile"]["fun"](x)*2*np.pi-  \
-                    GEO["thickness"]["interWall"]*                                  \
-                    CH["number"]/np.cos(GEO["spline"]["Rotation"](x)))/CH["number"] #
                                                                                     #
                                                                                     #
     # Initialization before the sweeping of channel profiles                        #
     vertices, faces         = [], []                                                #   
-    GEO["length"]["DELTA"]  = DELTA                                                 #
-    x, rotation, idx_count  = GEO["pos"]["end"]-DELTA, 0.0, 0                       #
+    x, rotation, idx_count  = GEO["pos"]["end"]-GEO["length"]["DELTA"], 0, 0        #
     prev_idx                = None                                                  #
     check                   = 0                                                     #
                                                                                     #
@@ -79,18 +25,6 @@ def buildChannels(GEO, CH, np):
     horizontalSamples       = GEO["number"]["samples"]["channel"]["h"]              #
     radialSamples           = GEO["number"]["samples"]["channel"]["r"]              #
                                                                                     #
-    # Axial coordinate for toroydal axis                                            #
-    GEO["spline"]["plane"] = lambda theta: (                                        #
-        GEO["spline"]["torus"](min(theta, GEO["sigmaRange"])) +                     #
-        GEO["spline"]["tubeThickness"](min(theta, GEO["sigmaRange"])) +             #
-        GEO["spline"]["jump"](min(theta, GEO["sigmaRange"])) -                      #
-        GEO["spline"]["torus"](min(theta, GEO["sigmaRange"])) *                     #
-        np.sin(GEO["spline"]["profile"]["dfun"](                                    #
-            GEO["pos"]["end"] -                                                     #
-            GEO["spline"]["torus"](min(theta, GEO["sigmaRange"])) -                 #
-            GEO["spline"]["tubeThickness"](min(theta, GEO["sigmaRange"]))           #
-        ))                                                                          #
-    )                                                                               #
                                                                                     #
     # sweeping of channels, starting from DELTA end to the 0 axial position         #
     while x >= 0:                                                                   #
