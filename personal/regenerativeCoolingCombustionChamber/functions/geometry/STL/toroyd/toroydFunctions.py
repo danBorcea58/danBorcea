@@ -569,8 +569,7 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
 
             for k in range(len(nodes)):
                 node = int(nodes[k])
-                # Se non serve, puoi commentare questa riga
-                # oppositeNode = oppositeNodes[k] if k < len(oppositeNodes) else None
+                oppositeNode = int(oppositeNodes[k]) 
 
                 # Angolo iniziale locale per l’anello
                 psi = np.pi - alphaVec[node] - derDELTAVec[node]
@@ -584,16 +583,21 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
                 x = x_full[node]
 
                 for kk in range(ns):
-                    zc = xCentreVec[node] - torusVec[node] * np.sin(psiVec[kk])
-                    rc = rCentreVec[node] - torusVec[node] * np.cos(psiVec[kk])
-
-                    # Evita div/zero nel caso patologico rc ~ 0
-                    if rc == 0:
-                        theta = rotation
+                    if kk == GEO["number"]["samples"]["toroyd"]-1:
+                        ring_vertices.append(layer[node])
+                    elif kk == 0:
+                        ring_vertices.append(layer[oppositeNode])
                     else:
-                        theta = rotation + x / rc
+                        zc = xCentreVec[node] - torusVec[node] * np.sin(psiVec[kk])
+                        rc = rCentreVec[node] - torusVec[node] * np.cos(psiVec[kk])
 
-                    ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
+                        # Evita div/zero nel caso patologico rc ~ 0
+                        if rc == 0:
+                            theta = rotation
+                        else:
+                            theta = rotation + x / rc
+
+                        ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
 
                 # 1) appendi SOLO i vertici dell’anello corrente
                 AllverticesToroyd.extend(ring_vertices)
@@ -606,9 +610,6 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
                     for i_face in range(ns - 1):
                         facesToroyd.append([int(curr_idxToroyd[i_face]), int(prev_idxToroyd[i_face]), int(prev_idxToroyd[i_face + 1])])
                         facesToroyd.append([int(curr_idxToroyd[i_face]), int(prev_idxToroyd[i_face + 1]), int(curr_idxToroyd[i_face + 1])])
-                    # chiusura circolare dell’anello
-                    facesToroyd.append([int(curr_idxToroyd[-1]), int(prev_idxToroyd[-1]), int(prev_idxToroyd[0])])
-                    facesToroyd.append([int(curr_idxToroyd[-1]), int(prev_idxToroyd[0]), int(curr_idxToroyd[0])])
 
                 # 4) prepara per il prossimo anello
                 prev_idxToroyd = curr_idxToroyd

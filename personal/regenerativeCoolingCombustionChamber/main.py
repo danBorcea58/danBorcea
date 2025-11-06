@@ -36,8 +36,8 @@ INPUT = {
                                     "start":            0,
                                     "choking":          20,
                                     "throat":           70,
-                                    "divergent":        50,
-                                    "end":              60       
+                                    "divergent":        30,
+                                    "end":              50       
                                 }
                             },
             "thickness":    {   

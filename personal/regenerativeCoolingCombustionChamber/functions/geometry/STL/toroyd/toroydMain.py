@@ -28,6 +28,16 @@ def buildToroyd(GEO, CH, STL, np):
         internalNodes               = np.array(internalNodes)                       #
         N                           = internalNodes.shape[0]                        #
                                                                                     #
+                                                                                    
+        STL["toroydConnection"] = {
+            i: {
+                "v": np.empty((0, 3), dtype=float),  # vertici
+                "f": np.empty((0, 3), dtype=int),     # facce
+                "start": np.empty((0, 3), dtype=int),
+                "end": np.empty((0, 3), dtype=int)
+            }
+            for i in range(CH["number"])
+        }
         # Propper generation of mesh for transition.                                #
         flat_vertices, flat_faces, toroydVertices, ToroydFaces   = finalTrajectory(N,                            #
                                                       STL["total"]["v"],            #
@@ -49,11 +59,7 @@ def buildToroyd(GEO, CH, STL, np):
             f_totalT = np.vstack([STL["toroyd"]["f"], ToroydFaces+len(STL["toroyd"]["v"])]) #
         STL["total"]["v"] = v_total                                                 #
         STL["total"]["f"] = f_total                                                 #
-        print(len(v_totalT))
-        print(len(f_totalT))
-        print(len(v_total))
-        print(len(f_total))
-        print("ciao")
+
         
         STL["toroyd"]["f"] = f_totalT
         STL["toroyd"]["v"] = v_totalT
