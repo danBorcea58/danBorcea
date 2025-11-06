@@ -312,8 +312,11 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
     internalNodes           = np.array(internalNodes[:N])                           #   
                                                                                     #
     # Initialization                                                                #
+    verticesToroyd      = []
     Allvertices         = []                                                        #
-    faces               = []                                                        #
+    AllverticesToroyd   = []
+    faces               = []
+    facesToroyd         = []                                                        #
     sigmaVec    = np.zeros(len(startingNodes))                                      #
     alphaVec    = np.zeros(len(startingNodes))                                      #   
     RRVec       = np.zeros(len(startingNodes))                                      #   
@@ -323,6 +326,7 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
     derDeltaVec = np.zeros(len(startingNodes))                                      #
     xCentreVec  = np.zeros(len(startingNodes))                                      #
     rCentreVec  = np.zeros(len(startingNodes))                                      #
+    torusVec    = np.zeros(len(startingNodes))                                      #
     r           = np.zeros(len(startingNodes))                                      #
     xz          = np.zeros(len(startingNodes))                                      #
                                                                                     #
@@ -366,6 +370,7 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
         derDELTAVec[i]  = GEO["spline"]["profile"]["dfun"](GEO["pos"]["end"]-       #
                                 GEO["length"]["DELTA"])                             #
         torus           = GEO["spline"]["torus"](sigma)                             #
+        torusVec[i]     = torus
         xCentreVec[i]   = GEO["pos"]["end"] - plane - torus*np.sin(derDeltaVec[i])  #
         rCentreVec[i]   = GEO["spline"]["profile"]["fun"](                          #
             GEO["pos"]["end"]-plane)+torus*np.cos(derDeltaVec[i]                    #
@@ -409,7 +414,9 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
     # Initialization                                                                #
     rotation    = 2*np.pi/CH["number"]*j                                            #
     prev_idx    = None                                                              #
+    prev_idxToroyd = None                                                           #
     idx_count   = 0                                                                 #
+    idx_countToroyd = 0
     for step in range(steps+1):                                                     #
         # Progess along the integration                                             #
         ttt = step/steps                                                            #
@@ -420,6 +427,7 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
             xOld    = layer[0][0]                                                   #
             N       = len(layer)                                                    #      
             curr_idx = np.arange(idx_count, idx_count + N)                          #
+            curr_idxToroyd = np.arange(idx_countToroyd, idx_countToroyd + GEO["number"]["samples"]["toroyd"])                          #
         else:
             # Consider each point of the profile section, one by one                #
             for i in range(len(startingNodes)):                                     #
@@ -543,6 +551,69 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
             layer       = np.column_stack([xz, y, z])                               # 
         # Keep updating the STL dataset                                             #  
         Allvertices.extend(layer)                                                   #
+
+        if step == steps:
+            # Costruzione anelli toroide alla fine della traiettoria
+            ns = GEO["number"]["samples"]["toroyd"]
+
+            # Componenti della sezione di profilo (superficie interna) per il toroide
+            nodes = np.append(np.linspace(horizontalSamples - 2, 0, horizontalSamples - 1), N - 1).astype(int)
+            # Nodi sulla superficie esterna (se ti serve davvero, altrimenti puoi rimuovere oppositeNodes)
+            oppositeNodes = np.linspace(horizontalSamples + radialSamples - 3,
+                                        horizontalSamples * 2 + radialSamples - 4,
+                                        num=horizontalSamples).astype(int)
+
+            prev_idxToroyd = None
+            # indice di base nei vertici globali del toroide (usa la lunghezza corrente della lista)
+            base_idx = len(AllverticesToroyd)
+
+            for k in range(len(nodes)):
+                node = int(nodes[k])
+                # Se non serve, puoi commentare questa riga
+                # oppositeNode = oppositeNodes[k] if k < len(oppositeNodes) else None
+
+                # Angolo iniziale locale per l’anello
+                psi = np.pi - alphaVec[node] - derDELTAVec[node]
+                print(derDELTAVec[node])
+                # NOTA: era 2*np.pi - derDeltaVec[k] (typo). Uso coerente con derDELTAVec[node]
+                psiVec = np.linspace(psi, 2 * np.pi - derDeltaVec[node], ns)
+
+                # Vertici dell’anello k
+                ring_vertices = []
+                # x della sezione nel punto "node"
+                x = x_full[node]
+
+                for kk in range(ns):
+                    zc = xCentreVec[node] - torusVec[node] * np.sin(psiVec[kk])
+                    rc = rCentreVec[node] - torusVec[node] * np.cos(psiVec[kk])
+
+                    # Evita div/zero nel caso patologico rc ~ 0
+                    if rc == 0:
+                        theta = rotation
+                    else:
+                        theta = rotation + x / rc
+
+                    ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
+
+                # 1) appendi SOLO i vertici dell’anello corrente
+                AllverticesToroyd.extend(ring_vertices)
+
+                # 2) indici correnti dell’anello
+                curr_idxToroyd = np.arange(base_idx, base_idx + ns, dtype=int)
+
+                # 3) triangola tra anello precedente e corrente (se esiste)
+                if prev_idxToroyd is not None:
+                    for i_face in range(ns - 1):
+                        facesToroyd.append([int(curr_idxToroyd[i_face]), int(prev_idxToroyd[i_face]), int(prev_idxToroyd[i_face + 1])])
+                        facesToroyd.append([int(curr_idxToroyd[i_face]), int(prev_idxToroyd[i_face + 1]), int(curr_idxToroyd[i_face + 1])])
+                    # chiusura circolare dell’anello
+                    facesToroyd.append([int(curr_idxToroyd[-1]), int(prev_idxToroyd[-1]), int(prev_idxToroyd[0])])
+                    facesToroyd.append([int(curr_idxToroyd[-1]), int(prev_idxToroyd[0]), int(curr_idxToroyd[0])])
+
+                # 4) prepara per il prossimo anello
+                prev_idxToroyd = curr_idxToroyd
+                base_idx += ns
+                    
                                                                                     #
         # Triangulation of faces                                                    #
         if step > 0:                                                                #
@@ -554,11 +625,15 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
                                                                                     #
         # Iterate                                                                   #   
         prev_idx        = curr_idx                                                  #
+        prev_idxToroyd  = curr_idxToroyd
         idx_count       += N                                                        #
+        idx_countToroyd += GEO["number"]["samples"]["toroyd"]
     # Save dataset                                                                  #
     Allvertices = np.array(Allvertices)                                             #
+    AllverticesToroyd = np.array(AllverticesToroyd)                                  #
+    flat_verticesToroyd =  AllverticesToroyd.reshape(-1, 3)  
     flat_vertices = Allvertices.reshape(-1, 3)                                      #
-    return flat_vertices, np.array(faces)                                           #
+    return flat_vertices, np.array(faces), flat_verticesToroyd, np.array(facesToroyd)                                           #
 
 
 

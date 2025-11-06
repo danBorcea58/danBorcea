@@ -52,7 +52,8 @@ INPUT = {
                                         {
                                             "h"     :   9,          # int!
                                             "r"     :   13          # int!
-                                        }
+                                        },
+                                    "toroyd"        :   20          # int!
                                 }
                             },
             "conditions":   {
