@@ -28,25 +28,29 @@ def buildToroyd(GEO, CH, STL, np):
         internalNodes               = np.array(internalNodes)                       #
         N                           = internalNodes.shape[0]                        #
                                                                                     #
-                                                                                    
-        STL["toroydConnection"] = {
-            i: {
-                "v": np.empty((0, 3), dtype=float),  # vertici
-                "f": np.empty((0, 3), dtype=int),     # facce
-                "start": np.empty((0, 3), dtype=int),
-                "end": np.empty((0, 3), dtype=int)
-            }
-            for i in range(CH["number"])
-        }
+                                                                                    #
+        if i == 0:
+            # Initialization for the mesh for the connections between toroydal segments #                                              
+            STL["toroydConnection"] = {                                                 #
+                i: {                                                                    #
+                    "v": np.empty((0, 3), dtype=float),                                 #      
+                    "f": np.empty((0, 3), dtype=int),                                   #
+                    "start": np.empty((0, 3), dtype=int),                               #
+                    "end": np.empty((0, 3), dtype=int)                                  #
+                }                                                                       #
+                for i in range(int(CH["number"]-1))                                            #
+            }                                                                           #
         # Propper generation of mesh for transition.                                #
-        flat_vertices, flat_faces, toroydVertices, ToroydFaces   = finalTrajectory(N,                            #
+        flat_vertices, flat_faces, toroydVertices, ToroydFaces, STL   = finalTrajectory(N,                            #
                                                       STL["total"]["v"],            #
                                                       internalNodes,                #
                                                       np,                           #
                                                       CH,                           #
                                                       finalTheta,                   #
                                                       GEO,                          #
-                                                      i )                           #
+                                                      i, STL )                           #
+        
+        
                                                                                     #        
         # Update the STL dataset                                                    #
         v_total = np.vstack([STL["total"]["v"], flat_vertices])                     #
@@ -63,4 +67,6 @@ def buildToroyd(GEO, CH, STL, np):
         
         STL["toroyd"]["f"] = f_totalT
         STL["toroyd"]["v"] = v_totalT
+    from . import toroydConnectionFunctions
+    STL = toroydConnectionFunctions.toroydConnections(STL,GEO,CH,np)
     return STL                                                                      #

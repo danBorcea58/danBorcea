@@ -289,7 +289,7 @@ def nonLinearEquation(v, wall, tubeWall, offset, x1, x2, GEO, np, ls):          
 
 
 
-def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):        #
+def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL):   #
     # Proper integration and position of nodes function.                            #
     from scipy.optimize import fsolve                                               #
     from scipy.optimize import root_scalar                                          #
@@ -551,9 +551,49 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
             layer       = np.column_stack([xz, y, z])                               # 
         # Keep updating the STL dataset                                             #  
         Allvertices.extend(layer)                                                   #
-
+    
         if step == steps:
-            # Costruzione anelli toroide alla fine della traiettoria
+            if j == 0:
+                indexes = np.linspace(horizontalSamples - 2,
+                                    horizontalSamples + radialSamples - 3,
+                                    radialSamples).astype(int)
+
+                STL["toroydConnection"][j]["start"] = layer[indexes]
+                # aggiungi centri per lo start
+                yC = rCentreVec[indexes] * np.cos(rotation)
+                zC = rCentreVec[indexes] * np.sin(rotation)
+                #STL["toroydConnection"][j]["start_centre3D"] = np.column_stack([xCentreVec[indexes], yC, zC])
+
+            elif j == CH["number"] - 1:
+                indexes = np.linspace(N - 1,
+                                    horizontalSamples * 2 + radialSamples - 4,
+                                    radialSamples).astype(int)
+
+                STL["toroydConnection"][j-1]["end"] = layer[indexes]
+                yC = rCentreVec[indexes] * np.cos(rotation)
+                zC = rCentreVec[indexes] * np.sin(rotation)
+                STL["toroydConnection"][j-1]["start_centre3D"] = np.column_stack([xCentreVec[indexes], yC, zC])
+            
+
+            else:
+                # prima l’end del canale precedente
+                indexes = np.linspace(N - 1,
+                                    horizontalSamples * 2 + radialSamples - 4,
+                                    radialSamples).astype(int)
+                STL["toroydConnection"][j-1]["end"] = layer[indexes]
+                yC = rCentreVec[indexes] * np.cos(rotation)
+                zC = rCentreVec[indexes] * np.sin(rotation)
+                STL["toroydConnection"][j-1]["start_centre3D"] = np.column_stack([xCentreVec[indexes], yC, zC])
+
+                # poi lo start di quello corrente
+                indexes = np.linspace(horizontalSamples - 2,
+                                    horizontalSamples + radialSamples - 3,
+                                    radialSamples).astype(int)
+                STL["toroydConnection"][j]["start"] = layer[indexes]
+                
+        
+        if step == steps:                                                           #
+            # Costruzione anelli toroide alla fine della traiettoria                
             ns = GEO["number"]["samples"]["toroyd"]
 
             # Componenti della sezione di profilo (superficie interna) per il toroide
@@ -573,7 +613,6 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
 
                 # Angolo iniziale locale per l’anello
                 psi = np.pi - alphaVec[node] - derDELTAVec[node]
-                print(derDELTAVec[node])
                 # NOTA: era 2*np.pi - derDeltaVec[k] (typo). Uso coerente con derDELTAVec[node]
                 psiVec = np.linspace(psi, 2 * np.pi - derDeltaVec[node], ns)
 
@@ -634,7 +673,9 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j):    
     AllverticesToroyd = np.array(AllverticesToroyd)                                  #
     flat_verticesToroyd =  AllverticesToroyd.reshape(-1, 3)  
     flat_vertices = Allvertices.reshape(-1, 3)                                      #
-    return flat_vertices, np.array(faces), flat_verticesToroyd, np.array(facesToroyd)                                           #
+
+    
+    return flat_vertices, np.array(faces), flat_verticesToroyd, np.array(facesToroyd), STL                                           #
 
 
 

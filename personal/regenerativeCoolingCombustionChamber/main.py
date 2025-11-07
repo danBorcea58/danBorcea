@@ -18,7 +18,7 @@ INPUT = {
                             },
             "length":       {
                                 "chamber"   :           20,     # [cm]
-                                "minChannel":           0.3,
+                                "minChannel":           0.2,
                             },
             "ratio":        {
                                 "expansion" :           80,     #  exit/throat
@@ -36,8 +36,8 @@ INPUT = {
                                     "start":            0,
                                     "choking":          20,
                                     "throat":           70,
-                                    "divergent":        30,
-                                    "end":              50       
+                                    "divergent":        20,
+                                    "end":              40       
                                 }
                             },
             "thickness":    {   
@@ -51,9 +51,9 @@ INPUT = {
                                     "channel":  
                                         {
                                             "h"     :   9,          # int!
-                                            "r"     :   13          # int!
+                                            "r"     :   15          # int!
                                         },
-                                    "toroyd"        :   20          # int!
+                                    "toroyd"        :   40          # int!
                                 }
                             },
             "conditions":   {
