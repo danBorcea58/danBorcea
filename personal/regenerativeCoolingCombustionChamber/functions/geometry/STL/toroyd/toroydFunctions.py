@@ -223,12 +223,13 @@ def alfaRR(GEO, np):                                                            
     from scipy.optimize import least_squares as ls                                  #
                                                                                     #
     # Angular sampling (sigmaRange > 2pi)                                           #
-    sigma_vec   = np.linspace(0, GEO["sigmaRange"], 50)                             #
+    sigma_vec   = np.linspace(0, GEO["sigmaRange"], 30)                             #
     alpha_list  = []                                                                #
     RR_list     = []                                                                #
+    psi_list    = []
                                                                                     #
     for sigma in sigma_vec:                                                         #
-        alpha, RR = nonLinearEquation(                                              #
+        alpha, RR, psiMax = nonLinearEquation(                                      #
             GEO["spline"]["torus"](sigma),                                          #
             (GEO["thickness"]["channel"]) /                                         #
             np.cos(GEO["spline"]["profile"]["dfun"](                                #
@@ -241,13 +242,17 @@ def alfaRR(GEO, np):                                                            
         )                                                                           #
         alpha_list.append(alpha)                                                    #
         RR_list.append(RR)                                                          #
+        psi_list.append(psiMax)
                                                                                     #
     alpha_interp    = interp1d(sigma_vec, alpha_list, kind='linear',                #
                                fill_value='extrapolate')                            #
     RR_interp       = interp1d(sigma_vec, RR_list, kind='linear',                   #
                                fill_value='extrapolate')                            #
+    psi_interp       = interp1d(sigma_vec, psi_list, kind='linear',                   #
+                                 fill_value='extrapolate') 
     GEO["spline"]["alfa"]   = alpha_interp                                          #
     GEO["spline"]["RR"]     = RR_interp                                             #
+    GEO["spline"]["psi"]     = psi_interp                                             #
     return GEO                                                                      #
 
 
@@ -263,7 +268,7 @@ def nonLinearEquation(v, wall, tubeWall, offset, x1, x2, GEO, np, ls):          
     fun     = lambda x: GEO["spline"]["profile"]["fun"](x)                          #                     
                                                                                     #
                                                                                     #
-    def residuals(vars):                                                            #
+    def residuals1(vars):                                                            #
         alpha, R = vars                                                             #
                                                                                     #
         eq1 = ((v + tubeWall + R) * np.cos(alpha + dfun(x1))                        #
@@ -276,15 +281,41 @@ def nonLinearEquation(v, wall, tubeWall, offset, x1, x2, GEO, np, ls):          
         eq2 = (-(v + tubeWall + R) * np.sin(dfun(x1) + alpha)                       #
                - v * np.sin(dfun(x2)) + offset                                      #
                + (R+GEO["thickness"]["external"]) * np.sin(dfun(x1)))               #
+        return [eq1, eq2]                                                           #
+    
+    def residuals2(vars):                                                            #
+        psiMax, R = vars                                                             #
                                                                                     #
+        eq1 = ((tubeWall + R) * np.cos(GEO["boundaries"]["angle"]["channel"])                                     #
+               + v * np.sin(psiMax-np.pi/2)                                             #
+               + v * np.cos(dfun(x2))                                               #
+               + fun(x2) + GEO["thickness"]["internal"] / np.cos(dfun(x2))          #
+               - fun(x1) - GEO["thickness"]["internal"] / np.cos(dfun(x1))          #
+               - (R+GEO["thickness"]["external"]) * np.cos(dfun(x1))                #
+               - wall)                                                              #
+                                                                                    #
+        eq2 = (-(tubeWall + R) * np.sin(GEO["boundaries"]["angle"]["channel"])                       #
+               - v * np.cos(psiMax-np.pi/2)
+               - v * np.sin(dfun(x2)) + offset                                      #
+               + (R+GEO["thickness"]["external"]) * np.sin(dfun(x1)))               #
         return [eq1, eq2]                                                           #
                                                                                     #
-    bounds          = ([0, 0.0001], [2*np.pi, 10000])                               #
-    initial_guess   = [np.pi/4, 50.0]                                               #
-    result          = ls(residuals, initial_guess, bounds=bounds, method='trf')     #
+    bounds          = ([0, 0.0001], [np.pi, 10000])                               #
+    initial_guess   = [np.pi/2, 50.0]                                               #
+    result          = ls(residuals1, initial_guess, bounds=bounds, method='trf')    #
     alpha_sol       = np.mod(result.x[0], 2 * np.pi)                                #
+    print((alpha_sol + dfun(x1))*180/np.pi)
+    if alpha_sol + dfun(x1) > GEO["boundaries"]["angle"]["channel"]:      #
+        bounds          = ([0, 0.0001], [np.pi, 10000])                           #
+        initial_guess   = [np.pi/5, 100.0]                                           #
+        result          = ls(residuals2, initial_guess,bounds=bounds, method='trf') #
+        print("cio")
+        alpha_sol = GEO["boundaries"]["angle"]["channel"]-dfun(x1)
+        psi = np.mod(result.x[0], 2 * np.pi)  
+    else:
+        psi = np.pi-alpha_sol-dfun(x1)
     R_sol           = result.x[1]                                                   #
-    return alpha_sol, R_sol                                                         #
+    return alpha_sol, R_sol, psi                                                         #
 
 
 
@@ -319,6 +350,7 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
     facesToroyd         = []                                                        #
     sigmaVec    = np.zeros(len(startingNodes))                                      #
     alphaVec    = np.zeros(len(startingNodes))                                      #   
+    psiVec    = np.zeros(len(startingNodes))                                      #   
     RRVec       = np.zeros(len(startingNodes))                                      #   
     rRRVec      = np.zeros(len(startingNodes))                                      #
     xRRVec      = np.zeros(len(startingNodes))                                      #
@@ -366,6 +398,8 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
         # of local properties representing the transition to toroydal interface     #
         RRVec[i]        = GEO["spline"]["RR"](sigma)                                #
         alphaVec[i]     = GEO["spline"]["alfa"](sigma)                              #
+        psiVec[i]       = GEO["spline"]["psi"](sigma)                              #
+        print(GEO["spline"]["psi"](sigma)*180/np.pi)                              #
         sigmaVec[i]     = sigma                                                     #
         plane           = GEO["spline"]["plane"](sigma)                             #
         derDeltaVec[i]  = GEO["spline"]["profile"]["dfun"](GEO["pos"]["end"]-plane) #
@@ -378,9 +412,9 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
             GEO["pos"]["end"]-plane)+torus*np.cos(derDeltaVec[i]                    #
                 ) + GEO["thickness"]["internal"]/np.cos(derDeltaVec[i])             #
         RR              = RRVec[i]+GEO["thickness"]["external"]                     #
-        rRRVec[i]       = rCentreVec[i]+(torus+RR)*np.cos(                          #
+        rRRVec[i]       = rCentreVec[i]+torus*np.sin(psiVec[i]-np.pi/2)+RR*np.cos(                          #
             alphaVec[i]+derDELTAVec[i])                                             #
-        xRRVec[i]       = xCentreVec[i]-(torus+RR)*np.sin(                          #   
+        xRRVec[i]       = xCentreVec[i]-torus*np.cos(psiVec[i]-np.pi/2)-RR*np.sin(                          #   
             alphaVec[i]+derDELTAVec[i])                                             #
                                                                                     #
                                                                                     #
@@ -613,9 +647,9 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
                 oppositeNode = int(oppositeNodes[k]) 
 
                 # Angolo iniziale locale per l’anello
-                psi = np.pi - alphaVec[node] - derDELTAVec[node]
+                psi = psiVec[node]
                 # NOTA: era 2*np.pi - derDeltaVec[k] (typo). Uso coerente con derDELTAVec[node]
-                psiVec = np.linspace(psi, 2 * np.pi - derDeltaVec[node], ns)
+                secpsiVec = np.linspace(psi, 2 * np.pi - derDeltaVec[node], ns)
 
                 # Vertici dell’anello k
                 ring_vertices = []
@@ -628,8 +662,8 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
                     elif kk == 0:
                         ring_vertices.append(layer[oppositeNode])
                     else:
-                        zc = xCentreVec[node] - torusVec[node] * np.sin(psiVec[kk])
-                        rc = rCentreVec[node] - torusVec[node] * np.cos(psiVec[kk])
+                        zc = xCentreVec[node] - torusVec[node] * np.sin(secpsiVec[kk])
+                        rc = rCentreVec[node] - torusVec[node] * np.cos(secpsiVec[kk])
 
                         # Evita div/zero nel caso patologico rc ~ 0
                         if rc == 0:

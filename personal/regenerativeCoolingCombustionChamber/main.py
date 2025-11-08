@@ -18,12 +18,12 @@ INPUT = {
                             },
             "length":       {
                                 "chamber"   :           20,     # [cm]
-                                "minChannel":           0.3,
+                                "minChannel":           0.5,
                             },
             "ratio":        {
                                 "expansion" :           80,     #  exit/throat
                                 "length"    :           60,     # [%]
-                                "contour"   :           0.17,   # [0-1]
+                                "contour"   :           0.13,   # [0-1]
                                 "channelLength":        0.4
                             },
             "curvature":    {
@@ -35,22 +35,22 @@ INPUT = {
                                 {
                                     "start":            0,
                                     "choking":          20,
-                                    "throat":           45,
-                                    "divergent":        20,
-                                    "end":              45       
+                                    "throat":           50,
+                                    "divergent":        0,
+                                    "end":              50       
                                 }
                             },
             "thickness":    {   
                                 "internal"  :           0.1,      # [cm]
                                 "channel"   :           0.15,
                                 "external"  :           0.1,
-                                "interWall" :           0.2
+                                "interWall" :           0.3
                             },
             "number":       {   "samples"   :   
                                 {
                                     "channel":  
                                         {
-                                            "h"     :   5,          # int!
+                                            "h"     :   9,          # int!
                                             "r"     :   13          # int!
                                         },
                                     "toroyd"        :   40          # int!

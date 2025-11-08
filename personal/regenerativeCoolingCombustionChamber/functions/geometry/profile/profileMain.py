@@ -18,12 +18,12 @@ def INPUTprocessing(INPUT,np):
                                 },
                 "ratio":        {
                                     "channelTail":      0.5,
-                                    "toroydDELTA":      1.4
+                                    "toroydDELTA":      1.2
 
                                 },
                 "boundaries":   {
                                     "angle":    {
-                                                    "channel":     80
+                                                    "channel":     50
                                                 } 
                                 },
                 "number":       {

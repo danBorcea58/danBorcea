@@ -11,6 +11,8 @@ def buildToroyd(GEO, CH, STL, np):
     # Iterate the number of channels, each toroydal section is different, therefor  #
     # needs to be computed separately.                                              #
     for i in range(int(float(CH["number"]))):                                       #
+        print(i)
+        print(GEO["boundaries"]["angle"]["channel"])
     # Generate reference nodes which associate to each node of the mesh some local  #
     # geometrical parameters. FinalTheta is only required once.                     #
         if i == 0:                                                                  #
