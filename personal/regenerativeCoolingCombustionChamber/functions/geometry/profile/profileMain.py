@@ -18,7 +18,7 @@ def INPUTprocessing(INPUT,np):
                                 },
                 "ratio":        {
                                     "channelTail":      0.5,
-                                    "toroydDELTA":      1.2
+                                    "toroydDELTA":      1.4
 
                                 },
                 "boundaries":   {

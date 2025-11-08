@@ -18,13 +18,13 @@ INPUT = {
                             },
             "length":       {
                                 "chamber"   :           20,     # [cm]
-                                "minChannel":           0.2,
+                                "minChannel":           0.3,
                             },
             "ratio":        {
                                 "expansion" :           80,     #  exit/throat
                                 "length"    :           60,     # [%]
                                 "contour"   :           0.17,   # [0-1]
-                                "channelLength":        0.3
+                                "channelLength":        0.4
                             },
             "curvature":    {
                                 "1"         :           2,      # [cm]
@@ -35,23 +35,23 @@ INPUT = {
                                 {
                                     "start":            0,
                                     "choking":          20,
-                                    "throat":           70,
+                                    "throat":           45,
                                     "divergent":        20,
-                                    "end":              40       
+                                    "end":              45       
                                 }
                             },
             "thickness":    {   
-                                "internal"  :           0.1,      # [mm]
-                                "channel"   :           0.3,
+                                "internal"  :           0.1,      # [cm]
+                                "channel"   :           0.15,
                                 "external"  :           0.1,
-                                "interWall" :           0.05
+                                "interWall" :           0.2
                             },
             "number":       {   "samples"   :   
                                 {
                                     "channel":  
                                         {
-                                            "h"     :   9,          # int!
-                                            "r"     :   15          # int!
+                                            "h"     :   5,          # int!
+                                            "r"     :   13          # int!
                                         },
                                     "toroyd"        :   40          # int!
                                 }

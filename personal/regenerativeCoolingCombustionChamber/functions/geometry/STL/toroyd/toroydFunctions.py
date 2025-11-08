@@ -345,7 +345,7 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
                                   originalStartingNodes[i][1]), 2 * np.pi)          #
         # Discrimination method.                                                    #
         if thetaObs >= altFinalTheta:                                               #
-            if discr >= GEO["thetaInitial"] or discr <= altFinalTheta:              #
+            if discr >= GEO["thetaInitial"] or discr <= altFinalTheta or j == 0:    #
                 selection = 0                                                       #
             else:                                                                   #
                 selection = 1                                                       #
@@ -359,6 +359,8 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
             sigma = thetaObs - altFinalTheta + sel*2*np.pi                          #
         if j == 0:                                                                  #
             sigma = np.mod(sigma,2*np.pi)                                           #
+            if sigma > np.pi:                                                       #
+                sigma = 0                                                           #
                                                                                     #
         # Sigma can be between 0 and sigmaRange. It is used to retrieve the         #
         # of local properties representing the transition to toroydal interface     #
@@ -562,7 +564,6 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
                 # aggiungi centri per lo start
                 yC = rCentreVec[indexes] * np.cos(rotation)
                 zC = rCentreVec[indexes] * np.sin(rotation)
-                #STL["toroydConnection"][j]["start_centre3D"] = np.column_stack([xCentreVec[indexes], yC, zC])
 
             elif j == CH["number"] - 1:
                 indexes = np.linspace(N - 1,
