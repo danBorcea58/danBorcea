@@ -23,7 +23,7 @@ def INPUTprocessing(INPUT,np):
                                 },
                 "boundaries":   {
                                     "angle":    {
-                                                    "channel":     50
+                                                    "channel":     60
                                                 } 
                                 },
                 "number":       {

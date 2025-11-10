@@ -14,7 +14,8 @@ INPUT = {
                                 "chamber"   :           6,      # [cm]
                                 "throat"    :           2,      # [cm]
                                 "toroydInit":           1.4,
-                                "toroydEnd" :           0.5
+                                "toroydEnd" :           0.5,
+                                "Oring"     :           0.09
                             },
             "length":       {
                                 "chamber"   :           20,     # [cm]
@@ -35,16 +36,16 @@ INPUT = {
                                 {
                                     "start":            0,
                                     "choking":          20,
-                                    "throat":           50,
-                                    "divergent":        0,
-                                    "end":              50       
+                                    "throat":           60,
+                                    "divergent":        30,
+                                    "end":              60       
                                 }
                             },
             "thickness":    {   
                                 "internal"  :           0.1,      # [cm]
                                 "channel"   :           0.15,
                                 "external"  :           0.1,
-                                "interWall" :           0.3
+                                "interWall" :           0.15
                             },
             "number":       {   "samples"   :   
                                 {
@@ -53,7 +54,7 @@ INPUT = {
                                             "h"     :   9,          # int!
                                             "r"     :   13          # int!
                                         },
-                                    "toroyd"        :   40          # int!
+                                    "toroyd"        :   3          # int!
                                 }
                             },
             "conditions":   {

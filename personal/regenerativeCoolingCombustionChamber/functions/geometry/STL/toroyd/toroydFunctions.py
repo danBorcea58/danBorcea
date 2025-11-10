@@ -588,6 +588,128 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
         # Keep updating the STL dataset                                             #  
         Allvertices.extend(layer)                                                   #
     
+        
+                
+        
+        if step == steps:                                                           #
+            # Costruzione anelli toroide alla fine della traiettoria                
+            ns = GEO["number"]["samples"]["toroyd"]
+
+            # Componenti della sezione di profilo (superficie interna) per il toroide
+            nodes = np.append(np.linspace(horizontalSamples - 2, 0, horizontalSamples - 1), N - 1).astype(int)
+            # Nodi sulla superficie esterna (se ti serve davvero, altrimenti puoi rimuovere oppositeNodes)
+            oppositeNodes = np.linspace(horizontalSamples + radialSamples - 3,
+                                        horizontalSamples * 2 + radialSamples - 4,
+                                        num=horizontalSamples).astype(int)
+
+            prev_idxToroyd = None
+            # indice di base nei vertici globali del toroide (usa la lunghezza corrente della lista)
+            base_idx = len(AllverticesToroyd)
+
+            for k in range(len(nodes)):
+                node = int(nodes[k])
+                oppositeNode = int(oppositeNodes[k]) 
+
+                # Angolo iniziale locale per l’anello
+                psi = psiVec[node]
+                # NOTA: era 2*np.pi - derDeltaVec[k] (typo). Uso coerente con derDELTAVec[node]
+                secpsiVec = np.linspace(2 * np.pi - derDeltaVec[node],2*np.pi- GEO["boundaries"]["angle"]["channel"], ns)
+
+                # Vertici dell’anello k
+                ring_vertices = []
+                # x della sezione nel punto "node"
+                x = x_full[node]
+
+                for kk in range(ns):
+                    if kk == 0:
+                        ring_vertices.append(layer[node])
+                    else:
+                        zc = xCentreVec[node] - torusVec[node] * np.sin(secpsiVec[kk])
+                        rc = rCentreVec[node] - torusVec[node] * np.cos(secpsiVec[kk])
+
+                        # Evita div/zero nel caso patologico rc ~ 0
+                        if rc == 0:
+                            theta = rotation
+                        else:
+                            theta = rotation + x / rc
+
+                        ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
+                
+                for kk in range(1,4):
+                    l = internalClearence(GEO, rCentreVec[node], xCentreVec[node], torusVec[node], np, fsolve)*(GEO["sigmaRange"]-sigmaVec[node])/GEO["sigmaRange"]
+                    zc = xCentreVec[node] + torusVec[node] * np.sin(GEO["boundaries"]["angle"]["channel"]) + \
+                        np.cos(GEO["boundaries"]["angle"]["channel"])*l*kk/3
+
+                    rc = rCentreVec[node] - torusVec[node] * np.cos(GEO["boundaries"]["angle"]["channel"]) + \
+                        l*kk/3 * np.sin(GEO["boundaries"]["angle"]["channel"])
+
+                    # Evita div/zero nel caso patologico rc ~ 0
+                    if rc == 0:
+                        theta = rotation
+                    else:
+                        theta = rotation + x / rc
+
+                    ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
+                zBot = zc
+                rBot = rc
+
+                MAX = GEO["boundaries"]["angle"]["channel"]
+                for kk in range(1,13):
+                    rTop = rCentreVec[node] - torusVec[node]*np.cos(psiVec[node])
+                    zTop = xCentreVec[node] - torusVec[node]*np.sin(psiVec[node])
+                    rExt = (np.tan(MAX)*(zBot-zTop)+rTop-rBot)/(2*(np.tan(MAX))*np.sin(MAX))
+                    deltaZ = np.sin(MAX)*rExt
+                    midZ = zBot-deltaZ
+                    midR = rBot - rExt*np.cos(MAX)
+                    vec = np.linspace(-MAX,MAX,13)
+                    zc = midZ - np.sin(vec[kk])*rExt
+                    rc = midR + np.cos(vec[kk])*rExt
+
+                    # Evita div/zero nel caso patologico rc ~ 0
+                    if rc == 0:
+                        theta = rotation
+                    else:
+                        theta = rotation + x / rc
+
+                    ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
+
+                zBot = zc
+                rBot = rc
+                for kk in range(1,6):
+                    if kk == 5:
+                        ring_vertices.append(layer[oppositeNode])
+                    else:
+                        LL = np.sqrt((zBot-zTop)**2+(rBot-rTop)**2)
+                        zc = zBot - np.cos(MAX)*LL*kk/5
+                        rc = rBot - np.sin(MAX)*LL*kk/5
+
+                        # Evita div/zero nel caso patologico rc ~ 0
+                        if rc == 0:
+                            theta = rotation
+                        else:
+                            theta = rotation + x / rc
+
+                        ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
+                if k == 0:
+                    start_vertices = ring_vertices
+                elif k == len(nodes)-1:
+                    end_vertices = ring_vertices
+                # 1) appendi SOLO i vertici dell’anello corrente
+                AllverticesToroyd.extend(ring_vertices)
+
+                # 2) indici correnti dell’anello
+                curr_idxToroyd = np.arange(base_idx, base_idx + ns+3*5+5, dtype=int)
+
+                # 3) triangola tra anello precedente e corrente (se esiste)
+                if prev_idxToroyd is not None:
+                    for i_face in range(ns+3*5+5 - 1):
+                        facesToroyd.append([int(curr_idxToroyd[i_face]), int(prev_idxToroyd[i_face]), int(prev_idxToroyd[i_face + 1])])
+                        facesToroyd.append([int(curr_idxToroyd[i_face]), int(prev_idxToroyd[i_face + 1]), int(curr_idxToroyd[i_face + 1])])
+
+                # 4) prepara per il prossimo anello
+                prev_idxToroyd = curr_idxToroyd
+                base_idx += ns+3*5+5
+
         if step == steps:
             if j == 0:
                 indexes = np.linspace(horizontalSamples - 2,
@@ -624,71 +746,20 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
                 indexes = np.linspace(horizontalSamples - 2,
                                     horizontalSamples + radialSamples - 3,
                                     radialSamples).astype(int)
-                STL["toroydConnection"][j]["start"] = layer[indexes]
-                
-        
-        if step == steps:                                                           #
-            # Costruzione anelli toroide alla fine della traiettoria                
-            ns = GEO["number"]["samples"]["toroyd"]
+                STL["toroydConnection"][j]["start"] = layer[indexes]         
+        if step == steps:
+            if j == 0:
+                # Aggiungi i vertici iniziali del toroide
+                STL["toroydConnection"][j]["start"] = np.concatenate([STL["toroydConnection"][j]["start"][::-1], start_vertices], axis=0)
 
-            # Componenti della sezione di profilo (superficie interna) per il toroide
-            nodes = np.append(np.linspace(horizontalSamples - 2, 0, horizontalSamples - 1), N - 1).astype(int)
-            # Nodi sulla superficie esterna (se ti serve davvero, altrimenti puoi rimuovere oppositeNodes)
-            oppositeNodes = np.linspace(horizontalSamples + radialSamples - 3,
-                                        horizontalSamples * 2 + radialSamples - 4,
-                                        num=horizontalSamples).astype(int)
+            elif j == CH["number"] - 1:
+                # Aggiungi i vertici finali del toroide
+                STL["toroydConnection"][j-1]["end"] = np.concatenate([STL["toroydConnection"][j-1]["end"][::-1], end_vertices], axis=0)
 
-            prev_idxToroyd = None
-            # indice di base nei vertici globali del toroide (usa la lunghezza corrente della lista)
-            base_idx = len(AllverticesToroyd)
-
-            for k in range(len(nodes)):
-                node = int(nodes[k])
-                oppositeNode = int(oppositeNodes[k]) 
-
-                # Angolo iniziale locale per l’anello
-                psi = psiVec[node]
-                # NOTA: era 2*np.pi - derDeltaVec[k] (typo). Uso coerente con derDELTAVec[node]
-                secpsiVec = np.linspace(psi, 2 * np.pi - derDeltaVec[node], ns)
-
-                # Vertici dell’anello k
-                ring_vertices = []
-                # x della sezione nel punto "node"
-                x = x_full[node]
-
-                for kk in range(ns):
-                    if kk == GEO["number"]["samples"]["toroyd"]-1:
-                        ring_vertices.append(layer[node])
-                    elif kk == 0:
-                        ring_vertices.append(layer[oppositeNode])
-                    else:
-                        zc = xCentreVec[node] - torusVec[node] * np.sin(secpsiVec[kk])
-                        rc = rCentreVec[node] - torusVec[node] * np.cos(secpsiVec[kk])
-
-                        # Evita div/zero nel caso patologico rc ~ 0
-                        if rc == 0:
-                            theta = rotation
-                        else:
-                            theta = rotation + x / rc
-
-                        ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
-
-                # 1) appendi SOLO i vertici dell’anello corrente
-                AllverticesToroyd.extend(ring_vertices)
-
-                # 2) indici correnti dell’anello
-                curr_idxToroyd = np.arange(base_idx, base_idx + ns, dtype=int)
-
-                # 3) triangola tra anello precedente e corrente (se esiste)
-                if prev_idxToroyd is not None:
-                    for i_face in range(ns - 1):
-                        facesToroyd.append([int(curr_idxToroyd[i_face]), int(prev_idxToroyd[i_face]), int(prev_idxToroyd[i_face + 1])])
-                        facesToroyd.append([int(curr_idxToroyd[i_face]), int(prev_idxToroyd[i_face + 1]), int(curr_idxToroyd[i_face + 1])])
-
-                # 4) prepara per il prossimo anello
-                prev_idxToroyd = curr_idxToroyd
-                base_idx += ns
-                    
+            else:
+                # Intermediate channels: aggiungi end al precedente e start al corrente
+                STL["toroydConnection"][j-1]["end"] = np.concatenate([STL["toroydConnection"][j-1]["end"][::-1], end_vertices], axis=0)
+                STL["toroydConnection"][j]["start"] = np.concatenate([STL["toroydConnection"][j]["start"][::-1], start_vertices], axis=0)   
                                                                                     #
         # Triangulation of faces                                                    #
         if step > 0:                                                                #
@@ -733,3 +804,29 @@ def intersection(GEO, rCentre, xCentre, distance, np, fsolve):                  
     if not np.isfinite(gamma_sol[0]):                                               #   
         raise RuntimeError("fsolve non ha trovato una soluzione valida.")           #
     return gamma_sol[0]                                                             #
+
+
+def internalClearence(GEO, rCentre, xCentre, radius, np, fsolve):                      #
+    # Implicit function with one variable which retrieves the angle representing    #
+    # the intersection of the circle centre in the toroid profile section with      #
+    # the given distance and the RAO engine profile                                 #
+    fun     = GEO["spline"]["profile"]["fun"]                                       #
+                                                                                    #
+    def f(l):                                                                   #
+        h = xCentre + np.sin(GEO["boundaries"]["angle"]["channel"])*radius + l*\
+              + np.cos(GEO["boundaries"]["angle"]["channel"]) + \
+            GEO["thickness"]["external"]/np.cos(GEO["boundaries"]["angle"]["channel"])        #
+        r = rCentre -np.cos(GEO["boundaries"]["angle"]["channel"])*radius+ \
+            l*np.sin(GEO["boundaries"]["angle"]["channel"]) - \
+            fun(h)                                      #
+        return r - 3*GEO["radius"]["Oring"]                             #
+                                                                                    #
+    l0 = 1                                                              #
+    gamma_sol = fsolve(f, l0, xtol=1e-2, maxfev=15)                             #
+                                                                                    #
+    if not np.isfinite(gamma_sol[0]):                                               #   
+        raise RuntimeError("fsolve non ha trovato una soluzione valida.")           #
+    return gamma_sol[0]                                                             #
+
+
+
