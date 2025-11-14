@@ -681,19 +681,24 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
 
                 zBot = zc
                 rBot = rc
-                for kk in range(1,6):
+                for kk in range(1, 6):
+                    if k == 0 and kk != 5 and j == CH["number"]-1:
+                        continue  # salta tutto tranne kk == 5 al primo layer
+
                     if kk == 5:
                         ring_vertices.append(layer[oppositeNode])
                     else:
-                        LL = np.sqrt((zBot-zTop)**2+(rBot-rTop)**2)
-                        zc = zBot - np.cos(MAX)*LL*kk/5
-                        rc = rBot - np.sin(MAX)*LL*kk/5
+                        LL = np.sqrt((zBot - zTop)**2 + (rBot - rTop)**2)
+                        zc = zBot - np.cos(MAX) * LL * kk / 5
+                        rc = rBot - np.sin(MAX) * LL * kk / 5
 
                         # Evita div/zero nel caso patologico rc ~ 0
                         if rc == 0:
-                            theta = rotation[node]+(rotation[oppositeNode]-rotation[node])*(zc-layer[node][0])/(layer[oppositeNode][0]-layer[node][0])
+                            theta = rotation[node] + (rotation[oppositeNode] - rotation[node]) * \
+                                    (zc - layer[node][0]) / (layer[oppositeNode][0] - layer[node][0])
                         else:
-                            theta = rotation[node]+(rotation[oppositeNode]-rotation[node])*(zc-layer[node][0])/(layer[oppositeNode][0]-layer[node][0]) + x / rc
+                            theta = rotation[node] + (rotation[oppositeNode] - rotation[node]) * \
+                                    (zc - layer[node][0]) / (layer[oppositeNode][0] - layer[node][0]) + x / rc
 
                         ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
                 if k == 0:
@@ -707,14 +712,41 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
                 curr_idxToroyd = np.arange(base_idx, base_idx + ns+3*5+5, dtype=int)
 
                 # 3) triangola tra anello precedente e corrente (se esiste)
-                if prev_idxToroyd is not None:
+                if prev_idxToroyd is not None and not (k == 1 and j == CH["number"]-1):
                     for i_face in range(ns+3*5+5 - 1):
                         facesToroyd.append([int(curr_idxToroyd[i_face]), int(prev_idxToroyd[i_face]), int(prev_idxToroyd[i_face + 1])])
                         facesToroyd.append([int(curr_idxToroyd[i_face]), int(prev_idxToroyd[i_face + 1]), int(curr_idxToroyd[i_face + 1])])
 
+                # 3bis) triangolazione a ventaglio tra il primo layer (1 solo nodo) e il secondo (più nodi)
+                if k == 1 and j == CH["number"] - 1:
+                    center_idx = base_idx - 1
+                    num_end_pts = 5
+                    ring_tail = curr_idxToroyd[-num_end_pts:]
+                    ring_head = curr_idxToroyd[:len(curr_idxToroyd) - num_end_pts]
+
+                    # 1. Ventaglio
+                    for i in range(len(ring_tail) - 1):
+                        facesToroyd.append([center_idx, ring_tail[i], ring_tail[i + 1]])
+
+                    # 2. Classico
+                    for i_face in range(len(ring_head) - 1):
+                        facesToroyd.append([ring_head[i_face], prev_idxToroyd[i_face], prev_idxToroyd[i_face + 1]])
+                        facesToroyd.append([ring_head[i_face], prev_idxToroyd[i_face + 1], ring_head[i_face + 1]])
+
+                    # 3. Chiusura tra fine classico e inizio ventaglio
+                    facesToroyd.append([center_idx, ring_head[-1], ring_tail[0]])
+
+                    # 4. Chiusura tra fine ventaglio e inizio classico
+                    facesToroyd.append([center_idx, center_idx-1, ring_head[-1]])
+
+                    
+
                 # 4) prepara per il prossimo anello
                 prev_idxToroyd = curr_idxToroyd
-                base_idx += ns+3*5+5
+                if j == CH["number"]-1 and k == 0:
+                    base_idx += ns+3*5+1
+                else:
+                    base_idx += ns+3*5+5
 
         if step == steps:
             if j == 0:
