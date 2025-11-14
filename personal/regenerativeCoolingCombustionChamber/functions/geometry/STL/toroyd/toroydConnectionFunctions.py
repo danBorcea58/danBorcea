@@ -35,8 +35,11 @@ def toroydConnections(STL, GEO, CH, np):
         for k in range(1, 2 * steps + 1):
             if k == 1:
                 # spostamento verso il centro di curvatura
-                dir_mean = np.mean(dir_to_centre, axis=0, keepdims=True)
-                layer[1:12] = layer[1:12] + dir_mean * centre_step  # applicato a tutti i 36 punti
+                #dir_mean = np.mean(dir_to_centre, axis=0, keepdims=True)
+                #layer[1:12] = layer[1:12] + dir_mean * centre_step  # applicato a tutti i 36 punti
+                remaining = start_prev - layer
+                step_vec = remaining / (2 * steps - k + 1)  # passo adattivo
+                layer = layer + step_vec
             else:
                 # aggiorna direzione e distanza residua verso il target
                 remaining = start_prev - layer

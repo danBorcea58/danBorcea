@@ -37,8 +37,8 @@ INPUT = {
                                     "start":            0,
                                     "choking":          20,
                                     "throat":           60,
-                                    "divergent":        30,
-                                    "end":              60       
+                                    "divergent":        20,
+                                    "end":              50       
                                 }
                             },
             "thickness":    {   
@@ -51,7 +51,7 @@ INPUT = {
                                 {
                                     "channel":  
                                         {
-                                            "h"     :   9,          # int!
+                                            "h"     :   15,          # int!
                                             "r"     :   13          # int!
                                         },
                                     "toroyd"        :   3          # int!

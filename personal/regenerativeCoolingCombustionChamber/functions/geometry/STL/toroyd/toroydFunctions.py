@@ -466,6 +466,7 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
             curr_idxToroyd = np.arange(idx_countToroyd, idx_countToroyd + GEO["number"]["samples"]["toroyd"])                          #
         else:
             # Consider each point of the profile section, one by one                #
+            factor = np.zeros(len(startingNodes))
             for i in range(len(startingNodes)):                                     #
                 # Axial and radial coordinates                                      #
                 height = xRRVec[i]+(RRVec[i]+GEO["thickness"]["external"])*np.sin(  #
@@ -512,16 +513,20 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
                 angleVec = angleVec1 + (angleVec2-angleVec1)*ttt                    #
                                                                                     #
                 # Correct the points's angle based on its index inside the profile  #
-                if i <= horizontalSamples-2 or i == N-1:                            #
+                if i <= horizontalSamples-3 or i == N-1:                            #
                     angleFinal = otherAngle                                         # internal surface
-                elif i >= horizontalSamples+radialSamples-3 and                     \
+                    factor[i] = 1
+                elif i >= horizontalSamples+radialSamples-2 and                     \
                         i <= 2*horizontalSamples+radialSamples-4:                   # external surface
                     angleFinal = angle                                              #
-                elif i >= horizontalSamples-1 and                                   \
-                    i <= horizontalSamples+radialSamples-4:                         # first arc
+                    factor[i] = 0
+                elif i >= horizontalSamples-2 and                                   \
+                    i <= horizontalSamples+radialSamples-3:                         # first arc
                     angleFinal = angleVec[i-horizontalSamples+2]                    #
+                    factor[i] = 1-(i-horizontalSamples+2)/radialSamples
                 else:                                                               #
                     angleFinal = angleVec[N-1-i]                                    # second arc
+                    factor[i] = 1-(N-1-i)/radialSamples
                                                                                     #
                                                                                     #
                 # In order to translate all the points of the layer, a common       #
@@ -541,9 +546,9 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
                 xz[i]   = xCentre3-distance*np.sin(angleFinal)                      #
                                                                                     #
             # The interpolation for the reference mentioned above                   #
-            refHeight = xCentreSave - distanceSave*np.sin(otherAngleSave)           #
+            refHeight1 = xCentreSave - distanceSave*np.sin(otherAngleSave)           #
             refHeight2 = xCentreSave2 - distanceSave2*np.sin(angleSave)             #
-            refHeight = refHeight2 + (refHeight-refHeight2)*np.sin(ttt*np.pi/2)**2  #
+            refHeight = refHeight2 + ((refHeight1-refHeight2)*np.sin(ttt*np.pi/2)**2)*factor  #
                                                                                     #
             r_ref       = (GEO["spline"]["profile"]["fun"](refHeight)+              #
                             GEO["thickness"]["internal"]/np.cos(                    #
@@ -551,15 +556,15 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
             # A correction factor which counterreacts the schrinking of the profile #
             # due to the not negligible offset at the last channels                 # 
             inclination = np.arctan(GEO["spline"]["djump"](                         #
-                max(sigmaVec))/GEO["spline"]["profile"]["fun"](refHeight))          #
-            w           = CH["spline"]["width"](refHeight)/np.cos(inclination*ttt)  #
+                max(sigmaVec))/GEO["spline"]["profile"]["fun"](refHeight1))          #
+            w           = CH["spline"]["width"](refHeight1)/np.cos(inclination*ttt)  #
             smooth      = GEO["thickness"]["channel"]/np.cos(                       #
-                GEO["spline"]["profile"]["dfun"](refHeight))/2                      #
+                GEO["spline"]["profile"]["dfun"](refHeight1))/2                      #
                                                                                     #
             dx          = refHeight - xOld                                          #
             xOld        = refHeight                                                 #
-            dfun_val    = float(GEO["spline"]["profile"]["dfun"](refHeight))        #
-            rot_val     = float(GEO["spline"]["Rotation"](refHeight))               #
+            dfun_val    = GEO["spline"]["profile"]["dfun"](refHeight)       #
+            rot_val     = GEO["spline"]["Rotation"](refHeight)               #
             dtheta      = (np.tan(rot_val) * dx) / (r_ref * np.cos(dfun_val))       #
                                                                                     #
             rotation    -= dtheta                                                   #
@@ -584,7 +589,8 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
             # Convertion from 2D coordinates to the volumetric domain               #
             theta       = rotation + x_full / r_full                                #
             y, z        = r_full * np.cos(theta), r_full * np.sin(theta)            #
-            layer       = np.column_stack([xz, y, z])                               # 
+            layer       = np.column_stack([xz, y, z])                               #
+            oldLayer    = layer                                                     # 
         # Keep updating the STL dataset                                             #  
         Allvertices.extend(layer)                                                   #
     
@@ -593,7 +599,7 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
         
         if step == steps:                                                           #
             # Costruzione anelli toroide alla fine della traiettoria                
-            ns = GEO["number"]["samples"]["toroyd"]
+            ns = GEO["number"]["samples"]["channel"]["r"]
 
             # Componenti della sezione di profilo (superficie interna) per il toroide
             nodes = np.append(np.linspace(horizontalSamples - 2, 0, horizontalSamples - 1), N - 1).astype(int)
@@ -629,9 +635,9 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
 
                         # Evita div/zero nel caso patologico rc ~ 0
                         if rc == 0:
-                            theta = rotation
+                            theta = rotation[node]+(rotation[oppositeNode]-rotation[node])*(zc-layer[node][0])/(layer[oppositeNode][0]-layer[node][0])
                         else:
-                            theta = rotation + x / rc
+                            theta = rotation[node]+(rotation[oppositeNode]-rotation[node])*(zc-layer[node][0])/(layer[oppositeNode][0]-layer[node][0]) + x / rc
 
                         ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
                 
@@ -645,9 +651,9 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
 
                     # Evita div/zero nel caso patologico rc ~ 0
                     if rc == 0:
-                        theta = rotation
+                        theta = rotation[node]+(rotation[oppositeNode]-rotation[node])*(zc-layer[node][0])/(layer[oppositeNode][0]-layer[node][0])
                     else:
-                        theta = rotation + x / rc
+                        theta = rotation[node]+(rotation[oppositeNode]-rotation[node])*(zc-layer[node][0])/(layer[oppositeNode][0]-layer[node][0]) + x / rc
 
                     ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
                 zBot = zc
@@ -667,9 +673,9 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
 
                     # Evita div/zero nel caso patologico rc ~ 0
                     if rc == 0:
-                        theta = rotation
+                        theta = rotation[node]+(rotation[oppositeNode]-rotation[node])*(zc-layer[node][0])/(layer[oppositeNode][0]-layer[node][0])
                     else:
-                        theta = rotation + x / rc
+                        theta = rotation[node]+(rotation[oppositeNode]-rotation[node])*(zc-layer[node][0])/(layer[oppositeNode][0]-layer[node][0]) + x / rc
 
                     ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
 
@@ -685,9 +691,9 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
 
                         # Evita div/zero nel caso patologico rc ~ 0
                         if rc == 0:
-                            theta = rotation
+                            theta = rotation[node]+(rotation[oppositeNode]-rotation[node])*(zc-layer[node][0])/(layer[oppositeNode][0]-layer[node][0])
                         else:
-                            theta = rotation + x / rc
+                            theta = rotation[node]+(rotation[oppositeNode]-rotation[node])*(zc-layer[node][0])/(layer[oppositeNode][0]-layer[node][0]) + x / rc
 
                         ring_vertices.append([zc, rc * np.cos(theta), rc * np.sin(theta)])
                 if k == 0:
@@ -718,8 +724,8 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
 
                 STL["toroydConnection"][j]["start"] = layer[indexes]
                 # aggiungi centri per lo start
-                yC = rCentreVec[indexes] * np.cos(rotation)
-                zC = rCentreVec[indexes] * np.sin(rotation)
+                yC = rCentreVec[indexes] * np.cos(rotation[indexes])
+                zC = rCentreVec[indexes] * np.sin(rotation[indexes])
 
             elif j == CH["number"] - 1:
                 indexes = np.linspace(N - 1,
@@ -727,8 +733,8 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
                                     radialSamples).astype(int)
 
                 STL["toroydConnection"][j-1]["end"] = layer[indexes]
-                yC = rCentreVec[indexes] * np.cos(rotation)
-                zC = rCentreVec[indexes] * np.sin(rotation)
+                yC = rCentreVec[indexes] * np.cos(rotation[indexes])
+                zC = rCentreVec[indexes] * np.sin(rotation[indexes])
                 STL["toroydConnection"][j-1]["start_centre3D"] = np.column_stack([xCentreVec[indexes], yC, zC])
             
 
@@ -738,8 +744,8 @@ def finalTrajectory(N, vertices, internalNodes, np, CH, finalTheta, GEO, j, STL)
                                     horizontalSamples * 2 + radialSamples - 4,
                                     radialSamples).astype(int)
                 STL["toroydConnection"][j-1]["end"] = layer[indexes]
-                yC = rCentreVec[indexes] * np.cos(rotation)
-                zC = rCentreVec[indexes] * np.sin(rotation)
+                yC = rCentreVec[indexes] * np.cos(rotation[indexes])
+                zC = rCentreVec[indexes] * np.sin(rotation[indexes])
                 STL["toroydConnection"][j-1]["start_centre3D"] = np.column_stack([xCentreVec[indexes], yC, zC])
 
                 # poi lo start di quello corrente
